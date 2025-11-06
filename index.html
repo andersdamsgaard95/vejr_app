@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main id="container">
+        <!--Background Image-->
+        <div id="bg-image-container">
+            <img id="bg-image" src="/images/background-any.png" alt="">
+            <div id="opacityLayer"></div>
+        </div>
+        <div id="content">
+            <div id="header">
+                <button id="currentWeatherButton">
+                    <img id="location-icon" src="/icons/location-denied.png" alt="">
+                </button>
+                <button id="addPreferencesButton">
+                    <img src="/icons/settings-icon.png" alt="">
+                </button>
+            </div>
+
+            <div id="search-and-favorites">
+                <input id="cityInput" type="text" placeholder="Søg efter en lokation...">
+
+                <div id="vælg-favoriter">
+                    <p>Vælg fra favoritter</p>
+                    <img id="arrow" src="/icons/arrow.svg" alt="">
+
+                    <div id="savedCities">
+                        <button class="blueButton" id="addMoreCitiesButton"></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="output">
+                <div class="settingsBox" id="startBox">
+                    <p>Tillad lokation service for at få vejret i din aktuelle lokation.</p>
+                    <button id="tilladLokation" class="greenButton">
+                        Tillad lokation
+                        <img src="/icons/white_location.svg" alt="">
+                    </button>
+                </div>
+            </div>
+
+            <div id="preferencer-backgroundLayer">
+                <div id="preferencer">
+                    <div id="exit">X</div>
+
+                    <div id="addCity" class="settingsBox">
+                        <p>Lokation</p>
+                        <input id="cityFavorite" type="text" placeholder="Indtast lokation...">
+                        <button class="blueButton" id="addCityButton">Tilføj til favoritter</button>
+                    </div>
+
+                    <div id="gender-box" class="settingsBox">
+                        <p>Vælg køn</p>
+                        <div id="bulletDiv">
+                            <label>
+                                Mand
+                                <input type="radio" name="gender" value="mand">
+                            </label>
+                            <label>
+                                Kvinde
+                                <input type="radio" name="gender" value="kvinde">
+                            </label>
+                        </div>
+                        <p class="p-lille">Vi bruger denne indstilling til at skræddersy tøj-anbefalinger. Denne
+                            indstilling
+                            er ikke
+                            påkrævet.</p>
+                    </div>
+
+                    <div class="settingsBox">
+                        <p>Temperatur præference</p>
+                        <label>
+                            Sommervejr er over:
+                            <input class="tempInput" id="summerMinTemp" type="number">
+                            °C
+                        </label>
+                        <label>
+                            Jakkevejr er under:
+                            <input class="tempInput" id="winterMaxTemp" type="number">
+                            °C
+                        </label>
+                    </div>
+
+                    <div class="settingsBox">
+                        <p>Guide til lokation service</p>
+                        <p class="p-lille">Åben guiden for at se, hvordan du kan slå lokation service til eller fra i
+                            din
+                            browser.</p>
+                        <button id="openGeoGuide" class="blueButton">Åben guide</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--pop up to explain geolocation settings-->
+        <div id="geoDescriptionPopUp">
+            <button id="geoDescriptionExit">X</button>
+            <p>Din browser har blokeret adgang til din placering, fordi du tidligere har nægtet tilladelse. For at give
+                siden adgang til din lokation skal du åbne browserens indstillinger eller præferencer, finde sektionen
+                for placering eller site-tilladelser, og manuelt ændre indstillingen for denne hjemmeside til 'tillad'.
+                Når det er gjort, skal du opdatere siden, så vi kan hente vejrinformation for din aktuelle lokation.</p>
+        </div>
+
+    </main>
+
+
+    <script>
+        const apiKey = 'd094aa308b074c7951f627bd40420db8';
+
+        //min lokation knap
+        const currentWeatherButton = document.getElementById('currentWeatherButton');
+        currentWeatherButton.addEventListener('click', getLocationAndWeather);
+
+        //bynavn input
+        const cityInput = document.getElementById('cityInput');
+        cityInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                const city = cityInput.value.trim();
+                if (city) {
+                    getCurrentWeatherByCity(city);
+                    cityInput.value = '';
+                }
+            }
+        });
+
+        //geolocation description
+        const geoPopUp = document.getElementById('geoDescriptionPopUp');
+        const geoPopUpExit = document.getElementById('geoDescriptionExit');
+        let geoPopUpIsShown = false;
+        function toggleGeoPopUp() {
+            geoPopUpIsShown = !geoPopUpIsShown;
+
+            if (geoPopUpIsShown) {
+                geoPopUp.style.display = 'flex';
+            } else {
+                geoPopUp.style.display = 'none';
+            }
+        }
+
+        const allowLocationButton = document.getElementById('tilladLokation');
+        const openGeoGuide = document.getElementById('openGeoGuide');
+        allowLocationButton.addEventListener('click', toggleGeoPopUp);
+        geoPopUpExit.addEventListener('click', toggleGeoPopUp);
+        openGeoGuide.addEventListener('click', toggleGeoPopUp);
+
+        const preferencesBackgroundLayer = document.getElementById('preferencer-backgroundLayer');
+        const preferencesBox = document.getElementById('preferencer');
+        preferencesBackgroundLayer.addEventListener('click', () => {
+            preferencesBackgroundLayer.style.display = 'none';
+        });
+        preferencesBox.addEventListener('click', (e) => e.stopPropagation());
+
+        //save gender
+        const genderInputs = document.querySelectorAll('input[name="gender"]');
+        let lastChecked = null;
+
+        const savedGender = localStorage.getItem('køn');
+        if (savedGender) {
+            genderInputs.forEach(input => {
+                if (input.value === savedGender) {
+                    input.checked = true;
+                    lastChecked = input;
+                }
+            });
+        }
+
+        genderInputs.forEach(input => {
+            input.addEventListener('click', function () {
+                if (lastChecked === this) {
+                    this.checked = false;
+                    lastChecked = null;
+                    localStorage.removeItem('køn');
+                    console.log('Køn fjernet');
+                } else {
+                    lastChecked = this;
+                    localStorage.setItem('køn', this.value);
+                    console.log(`Køn gemt som: ${this.value}`);
+                }
+            });
+        });
+
+        //Temperatur preferences
+        const summerMinTempt = document.getElementById('summerMinTemp');
+        const winterMaxTempt = document.getElementById('winterMaxTemp');
+        summerMinTempt.value = localStorage.getItem('summerMinTemp') || 20;
+        winterMaxTempt.value = localStorage.getItem('winterMaxTemp') || 10;
+
+        summerMinTempt.addEventListener('change', (e) => {
+            localStorage.setItem('summerMinTemp', e.target.value);
+        })
+        winterMaxTempt.addEventListener('change', (e) => {
+            localStorage.setItem('winterMaxTemp', e.target.value);
+        })
+
+        const saveCity = document.getElementById('addCityButton');
+        saveCity.addEventListener('click', async () => {
+            let savedCities = JSON.parse(localStorage.getItem('savedCities')) || [];
+            const cityFavorite = document.getElementById('cityFavorite');
+
+            let newCity = cityFavorite.value.trim();
+            newCity = newCity.charAt(0).toUpperCase() + newCity.slice(1).toLowerCase();
+
+            if (newCity === '') {
+                alert('Du skal skrive en by først');
+                return;
+            }
+
+            //check if new city is valid
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${newCity}&appid=${apiKey}&units=metric&lang=da`);
+            const data = await response.json();
+
+            if (data.cod && data.cod !== 200) {
+                console.error('Du prøver at gemme et ukendt bynavn');
+                alert('Dette er et ukendt bynavn');
+                cityFavorite.value = '';
+                return;
+            }
+
+            if (!savedCities.includes(newCity)) {
+                savedCities.push(newCity);
+                localStorage.setItem('savedCities', JSON.stringify(savedCities));
+            } else {
+                alert('Byen er allerede gemt');
+            }
+
+            cityFavorite.value = '';
+            showFavoriteCities();
+            getCurrentWeatherByCity(newCity);
+        })
+
+        //Show saved cities
+        const chooseFavoritesBar = document.getElementById('vælg-favoriter');
+        const arrow = document.getElementById('arrow');
+        let savedCitiesIsShown = false;
+        chooseFavoritesBar.addEventListener('click', toggleSavedCities);
+
+        function toggleSavedCities() {
+            savedCitiesIsShown = !savedCitiesIsShown;
+
+            const savedCities = document.getElementById('savedCities');
+
+            if (savedCitiesIsShown) {
+                arrow.style.transform = 'rotate(180deg)';
+                savedCities.style.display = 'flex';
+            } else {
+                arrow.style.transform = 'rotate(0)';
+                savedCities.style.display = 'none';
+            }
+
+            console.log(savedCitiesIsShown);
+        }
+
+        const addPreferencesButton = document.getElementById('addPreferencesButton');
+        addPreferencesButton.addEventListener('click', () => {
+            preferencesBackgroundLayer.style.display = 'flex';
+        })
+
+        const exitPreferences = document.getElementById('exit');
+        exitPreferences.addEventListener('click', () => {
+            preferencesBackgroundLayer.style.display = 'none';
+        })
+
+        //output
+        const output = document.getElementById('output');
+
+        //get current weather by city
+        async function getCurrentWeatherByCity(city) {
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric&lang=da`);
+            const data = await response.json();
+
+            const forecast = await getWeatherForecastByCity(city);
+
+            if (data.cod && data.cod !== 200) {
+                console.error('ukendt bynavn');
+                alert('Du søgte efter et ukendt bynavn');
+                return;
+            } else {
+                console.log(data);
+                createWeatherBox(data, forecast);
+            }
+        }
+
+        //get current weather by geolocation
+        async function getCurrentWeather(lat, lon) {
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=da`);
+            const data = await response.json();
+            console.log(data);
+
+            const forecast = await getWeatherForecastByCoordinates(lat, lon);
+
+            createWeatherBox(data, forecast);
+        }
+
+        //forecast
+        async function getWeatherForecastByCoordinates(lat, lon) {
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=da`);
+            const data = await response.json();
+            return data;
+        }
+
+        async function getWeatherForecastByCity(city) {
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric&lang=da`);
+            const data = await response.json();
+            return data;
+        }
+
+        //weather box html
+        function createWeatherBox(data, forecast) {
+            output.innerHTML = '';
+
+            const icons = getCurrentIcons(data);
+
+            console.log('icons:', icons);
+
+            const weatherBox = `
+                <div id="weatherBoxWrapper">
+                    <div id="cityAndDescription">
+                        <h2 id="cityName" class="heading">${data.name}</h2>
+                        <p id="description">${data.weather[0].description}</p>
+                    </div>
+                    <div id="iconsContainer">
+                        <div id="smallIcons">
+                            <div>
+                                <img class="smallCurrentIcon" src=${`/icons/${icons.weather}.svg`} />
+                            </div>
+                            <div id="bigTemp">${Math.round(data.main.temp)}°C</div>
+                        </div>
+                        <div id="clothesIcon">
+                            <img class='bigIcon' src=${`/icons/${icons.clothes}.svg`} />    
+                        </div>
+                    </div>
+
+                    <div id='forecast'></div>
+                </div>
+            `;
+
+            output.innerHTML = weatherBox;
+
+            const smallIconsDiv = document.getElementById('smallIcons');
+            if (icons.umbrella) {
+                smallIconsDiv.classList.add('spaceBetween');
+                const umbrellaDiv = document.createElement('div');
+                const umbrellaIcon = document.createElement('img');
+                umbrellaIcon.className = 'smallCurrentIcon';
+                umbrellaIcon.src = '/icons/umbrella.svg'
+                umbrellaDiv.appendChild(umbrellaIcon);
+                smallIconsDiv.appendChild(umbrellaDiv);
+            }
+
+            const forecastDiv = document.getElementById('forecast');
+            const forecastItems = forecast.list.slice(0, 4);
+
+            console.log('forecast:', forecast);
+            console.log('forecastItems:', forecastItems);
+
+            forecastItems.forEach((item, index) => {
+                //time from now every 3 hours
+                const now = new Date();
+                const plusThreeHours = new Date(now.getTime() + (index + 1) * 3 * 60 * 60 * 1000);
+                const hours = plusThreeHours.getHours().toString().padStart(2, '0');
+                const minutes = plusThreeHours.getMinutes().toString().padStart(2, '0');
+                const formattedTime = `${hours}.${minutes}`;
+
+                //weather icon
+                const weather = item.weather[0].main.toLowerCase();
+
+                const weatherIcon = weather.includes('clear') ? 'sun' : weather.includes('clouds') ? 'cloud' : weather.includes('rain') ? 'rain' : weather.includes('fog') ? 'cloud' : weather.includes('snow') ? 'snow' : null;
+
+                const html = `
+                    <div class="forecastItem">
+                        <p>${formattedTime}</p>
+                        <p>${Math.round(item.main.temp)}°C</p>
+                        <div class="forecast-icon-description">
+                            <img class="smallForecastIcon" src="/icons/${weatherIcon}.svg" />
+                            <p class="p-lille">${item.weather[0].description}</p>
+                        </div>
+                    </div>
+                `;
+
+                forecastDiv.innerHTML += html;
+
+                const allForecasts = forecastDiv.querySelectorAll('.forecastItem');
+                const thisForecast = allForecasts[allForecasts.length - 1];
+                //const forecastIconDescription = thisForecast.querySelector('.forecast-icon-description');
+
+                // Tilføj paraply hvis det regner
+                if (weather.includes('rain')) {
+                    const umbrellaIcon = document.createElement('img');
+                    umbrellaIcon.id = 'forecastUmbrella';
+                    umbrellaIcon.className = 'smallForecastIcon';
+                    umbrellaIcon.src = '/icons/umbrella.svg';
+                    thisForecast.appendChild(umbrellaIcon);
+                }
+            });
+
+        }
+
+        function getCurrentIcons(data) {
+            const temp = data.main.temp;
+            const weather = data.weather[0].main.toLowerCase();
+
+            //change background
+            const bgImage = document.getElementById('bg-image');
+            const imageName = weather.includes('clear') ? 'clear' : weather.includes('clouds') ? 'cloudy' : weather.includes('rain') ? 'rain' : weather.includes('snow') ? 'snow' : 'any';
+            const finalSrc = `/images/background-${imageName}.png`;
+            bgImage.src = finalSrc;
+
+            let gender = '';
+            const savedGender = localStorage.getItem('køn');
+            if (savedGender) {
+                gender = savedGender;
+            } else {
+                gender = 'mand';
+            }
+
+            let icons = {
+                weather: '',
+                umbrella: false,
+                clothes: ''
+            };
+
+            //weather Icon
+            if (weather.includes('clear')) {
+                icons.weather = 'sun';
+            } else if (weather.includes('rain')) {
+                icons.weather = 'rain';
+                icons.umbrella = true;
+            } else if (weather.includes('clouds')) {
+                icons.weather = 'cloud';
+            } else if (weather.includes('fog')) {
+                icons.weather = 'cloud';
+            } else if (weather.includes('snow')) {
+                icons.weather = 'snow';
+            };
+
+            summerClothesTemp = localStorage.getItem('summerMinTemp') || 20;
+            winterClothesTemp = localStorage.getItem('winterMaxTemp') || 10
+
+            //clothes icon
+            if (temp >= summerClothesTemp) {
+                if (gender === 'mand') {
+                    icons.clothes = 't-shirt';
+                } else if (gender === 'kvinde') {
+                    icons.clothes = 'dress';
+                }
+            } else if (temp < summerClothesTemp && temp >= winterClothesTemp) {
+                icons.clothes = 'jumper';
+            } else {
+                icons.clothes = 'jacket';
+            }
+
+            return icons;
+        }
+
+        function getLocationAndWeather() {
+            const locationIcon = document.getElementById('location-icon');
+
+            if (!navigator.geolocation) {
+                alert("Geolocation er ikke understøttet i denne browser.");
+                locationIcon.src = '/icons/location-denied.png';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition((position) => {
+                //Der er givet tilladelse til at bruge lokation    
+                const { latitude, longitude } = position.coords;
+                console.log("Din position:", latitude, longitude);
+                locationIcon.src = '/icons/location-allowed.png'
+                getCurrentWeather(latitude, longitude);
+
+            }, (error) => {
+                //Der er ikke givet tilladelse til at bruge lokation
+                console.error("Der er ikke givet tilladelse til at bruge lokation", error);
+                locationIcon.src = '/icons/location-denied.png';
+                locationIcon.addEventListener('click', toggleGeoPopUp);
+                //alert('For at benytte din geolokation, skal du give browseren tiladelse til det');
+            }
+            );
+        }
+
+        function showFavoriteCities() {
+            const savedCitiesList = JSON.parse(localStorage.getItem('savedCities')) || [];
+            const savedCitiesContainer = document.getElementById('savedCities');
+            const addMoreCitiesButton = document.getElementById('addMoreCitiesButton');
+            addMoreCitiesButton.addEventListener('click', () => {
+                preferencesBackgroundLayer.style.display = 'flex';
+            })
+
+            savedCitiesContainer.innerHTML = '';
+
+            if (savedCitiesList.length > 0) {
+                savedCitiesList.forEach((city) => {
+                    const cityDiv = document.createElement('button');
+                    cityDiv.id = 'cityDiv';
+                    cityDiv.textContent = city;
+                    cityDiv.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        getCurrentWeatherByCity(city);
+                        toggleSavedCities();
+                        console.log(savedCitiesIsShown);
+                    });
+                    const deleteSavedCity = document.createElement('button');
+                    deleteSavedCity.id = 'deleteCity';
+                    deleteSavedCity.textContent = 'X';
+                    deleteSavedCity.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const updatedList = savedCitiesList.filter((c) => (
+                            c !== city
+                        ))
+                        localStorage.setItem('savedCities', JSON.stringify(updatedList));
+                        showFavoriteCities();
+                    })
+                    cityDiv.appendChild(deleteSavedCity);
+                    savedCitiesContainer.appendChild(cityDiv);
+                    savedCitiesContainer.appendChild(addMoreCitiesButton);
+                    addMoreCitiesButton.textContent = 'Tilføj flere';
+                })
+            } else {
+                const noSavedCititesMessage = document.createElement('p');
+                noSavedCititesMessage.textContent = 'Du har ikke tilføjet nogen lokationer til favoritter endnu.';
+                noSavedCititesMessage.id = 'noSavedCitiesMessage'
+                savedCitiesContainer.appendChild(noSavedCititesMessage);
+                savedCitiesContainer.appendChild(addMoreCitiesButton);
+                addMoreCitiesButton.textContent = 'Tilføj favoritter';
+            }
+        }
+        showFavoriteCities();
+
+        function checkIfPreferencesIsAdded() {
+            const savedGender = localStorage.getItem('køn');
+            if (!savedGender) {
+                preferencesBackgroundLayer.style.display = 'flex';
+            } else {
+                preferencesBackgroundLayer.style.display = 'none';
+                console.log("Gemte præferencer fundet:", savedGender);
+            }
+        }
+        checkIfPreferencesIsAdded();
+
+        getLocationAndWeather();
+    </script>
+</body>
+
+</html>
