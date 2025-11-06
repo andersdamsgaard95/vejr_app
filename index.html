@@ -34,6 +34,7 @@
 
                     <div id="savedCities">
                         <button class="blueButton" id="addMoreCitiesButton"></button>
+                        <div id="linearGradient"></div>
                     </div>
                 </div>
             </div>
@@ -49,55 +50,59 @@
             </div>
 
             <div id="preferencer-backgroundLayer">
-                <div id="preferencer">
-                    <div id="exit">X</div>
+                <div id="preferences-wrapper">
+                    <div id="preferencer">
+                        <div id="exit">X</div>
 
-                    <div id="addCity" class="settingsBox">
-                        <p>Lokation</p>
-                        <input id="cityFavorite" type="text" placeholder="Indtast lokation...">
-                        <button class="blueButton" id="addCityButton">Tilføj til favoritter</button>
-                    </div>
+                        <div id="addCity" class="settingsBox">
+                            <p>Lokation</p>
+                            <input id="cityFavorite" type="text" placeholder="Indtast lokation...">
+                            <button class="blueButton" id="addCityButton">Tilføj til favoritter</button>
+                        </div>
 
-                    <div id="gender-box" class="settingsBox">
-                        <p>Vælg køn</p>
-                        <div id="bulletDiv">
+                        <div id="gender-box" class="settingsBox">
+                            <p>Vælg køn</p>
+                            <div id="bulletDiv">
+                                <label>
+                                    Mand
+                                    <input type="radio" name="gender" value="mand">
+                                </label>
+                                <label>
+                                    Kvinde
+                                    <input type="radio" name="gender" value="kvinde">
+                                </label>
+                            </div>
+                            <p class="p-lille">Vi bruger denne indstilling til at skræddersy tøj-anbefalinger. Denne
+                                indstilling
+                                er ikke
+                                påkrævet.</p>
+                        </div>
+
+                        <div class="settingsBox">
+                            <p>Temperatur præference</p>
                             <label>
-                                Mand
-                                <input type="radio" name="gender" value="mand">
+                                Sommervejr er over:
+                                <input class="tempInput" id="summerMinTemp" type="number">
+                                °C
                             </label>
                             <label>
-                                Kvinde
-                                <input type="radio" name="gender" value="kvinde">
+                                Jakkevejr er under:
+                                <input class="tempInput" id="winterMaxTemp" type="number">
+                                °C
                             </label>
                         </div>
-                        <p class="p-lille">Vi bruger denne indstilling til at skræddersy tøj-anbefalinger. Denne
-                            indstilling
-                            er ikke
-                            påkrævet.</p>
-                    </div>
 
-                    <div class="settingsBox">
-                        <p>Temperatur præference</p>
-                        <label>
-                            Sommervejr er over:
-                            <input class="tempInput" id="summerMinTemp" type="number">
-                            °C
-                        </label>
-                        <label>
-                            Jakkevejr er under:
-                            <input class="tempInput" id="winterMaxTemp" type="number">
-                            °C
-                        </label>
-                    </div>
-
-                    <div class="settingsBox">
-                        <p>Guide til lokation service</p>
-                        <p class="p-lille">Åben guiden for at se, hvordan du kan slå lokation service til eller fra i
-                            din
-                            browser.</p>
-                        <button id="openGeoGuide" class="blueButton">Åben guide</button>
+                        <div class="settingsBox">
+                            <p>Guide til lokation service</p>
+                            <p class="p-lille">Åben guiden for at se, hvordan du kan slå lokation service til eller fra
+                                i
+                                din
+                                browser.</p>
+                            <button id="openGeoGuide" class="blueButton">Åben guide</button>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
 
@@ -108,6 +113,10 @@
                 siden adgang til din lokation skal du åbne browserens indstillinger eller præferencer, finde sektionen
                 for placering eller site-tilladelser, og manuelt ændre indstillingen for denne hjemmeside til 'tillad'.
                 Når det er gjort, skal du opdatere siden, så vi kan hente vejrinformation for din aktuelle lokation.</p>
+        </div>
+
+        <div id="newCityPopUp">
+            <p>Ny by tilføjet til favoritter</p>
         </div>
 
     </main>
@@ -235,6 +244,13 @@
             cityFavorite.value = '';
             showFavoriteCities();
             getCurrentWeatherByCity(newCity);
+
+            const newFavoriteCityAdded = document.getElementById('newCityPopUp');
+            newFavoriteCityAdded.style.display = 'flex';
+
+            setTimeout(() => {
+                newFavoriteCityAdded.style.display = 'none';
+            }, 2000)
         })
 
         //Show saved cities
@@ -368,7 +384,7 @@
                 const plusThreeHours = new Date(now.getTime() + (index + 1) * 3 * 60 * 60 * 1000);
                 const hours = plusThreeHours.getHours().toString().padStart(2, '0');
                 const minutes = plusThreeHours.getMinutes().toString().padStart(2, '0');
-                const formattedTime = `${hours}.${minutes}`;
+                const formattedTime = `${hours}:${minutes}`;
 
                 //weather icon
                 const weather = item.weather[0].main.toLowerCase();
@@ -535,7 +551,7 @@
         }
         showFavoriteCities();
 
-        function checkIfPreferencesIsAdded() {
+        /*function checkIfPreferencesIsAdded() {
             const savedGender = localStorage.getItem('køn');
             if (!savedGender) {
                 preferencesBackgroundLayer.style.display = 'flex';
@@ -544,7 +560,7 @@
                 console.log("Gemte præferencer fundet:", savedGender);
             }
         }
-        checkIfPreferencesIsAdded();
+        checkIfPreferencesIsAdded();*/
 
         getLocationAndWeather();
     </script>
